@@ -18,6 +18,9 @@ class HelmholtzPINN(nn.Module):
         inputs = torch.cat([x, y], axis=1)
         return self.net(inputs)
 
+def manufactured_solution(x, y):
+    return torch.sin(np.pi * x) * torch.sin(np.pi * y)
+
 def helmholtz_loss(model, x, y, k):
     x.requires_grad = True
     y.requires_grad = True
@@ -30,22 +33,45 @@ def helmholtz_loss(model, x, y, k):
 
     laplacian_u = u_xx + u_yy
     f = laplacian_u + k**2 * u  # Helmholtz equation
+    f_true = (k**2 - 2 * np.pi**2) * manufactured_solution(x, y)
 
-    return torch.mean(f**2)
+    return torch.mean((f - f_true)**2)
 
+import matplotlib.pyplot as plt
 
-model = HelmholtzPINN()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+resolutions = [50, 100, 200, 400]
+k = 3.0
+final_losses = []
 
-x_train = torch.Tensor(np.random.rand(1000, 1) * 2 - 1)  # x in [-1, 1]
-y_train = torch.Tensor(np.random.rand(1000, 1) * 2 - 1)  # y in [-1, 1]
-k = 3.0  # Wave number
+for res in resolutions:
+    model = HelmholtzPINN()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    
+    x_train = torch.Tensor(np.linspace(-1, 1, res)).unsqueeze(1)
+    y_train = torch.Tensor(np.linspace(-1, 1, res)).unsqueeze(1)
 
-for epoch in range(5000):
-    optimizer.zero_grad()
-    loss = helmholtz_loss(model, x_train, y_train, k)
-    loss.backward()
-    optimizer.step()
+    losses = []
+    for epoch in range(5000):
+        optimizer.zero_grad()
+        loss = helmholtz_loss(model, x_train, y_train, k)
+        loss.backward()
+        optimizer.step()
 
-    if epoch % 500 == 0:
-        print(f'Epoch {epoch}, Loss: {loss.item()}')
+        if epoch % 500 == 0:
+            losses.append(loss.item())
+
+    plt.plot(losses, label=f'Res {res}')
+    final_losses.append(losses[-1])
+
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Training Loss Over Epochs at Different Resolutions')
+plt.legend()
+plt.show()
+
+plt.figure()
+plt.plot(resolutions, final_losses, marker='o')
+plt.xlabel('Resolution')
+plt.ylabel('Final Loss')
+plt.title('Final Loss at Different Resolutions')
+plt.show()
