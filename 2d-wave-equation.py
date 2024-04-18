@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 class WavePINN(nn.Module):
     def __init__(self):
@@ -17,36 +19,79 @@ class WavePINN(nn.Module):
         inputs = torch.cat([x, y, t], axis=1)
         return self.net(inputs)
 
+
+def manufactured_solution(x, y, t, c, omega=np.pi):
+    return torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.cos(omega * t)
+
+def manufactured_solution_tt(x, y, t, c, omega=np.pi):
+    return -omega**2 * torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.cos(omega * t)
+
+def manufactured_solution_xx_yy(x, y, t, c, omega=np.pi):
+    return -2 * np.pi**2 * torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.cos(omega * t)
+
 def wave_equation_loss(model, x, y, t, c):
     x.requires_grad = True
     y.requires_grad = True
     t.requires_grad = True
 
-    u = model(x, y, t)
+    u_pred = model(x, y, t)
 
-    u_t = torch.autograd.grad(u.sum(), t, create_graph=True)[0]
-
+    u_t = torch.autograd.grad(u_pred.sum(), t, create_graph=True)[0]
     u_tt = torch.autograd.grad(u_t.sum(), t, create_graph=True)[0]
-    u_xx = torch.autograd.grad(torch.autograd.grad(u.sum(), x, create_graph=True)[0].sum(), x, create_graph=True)[0]
-    u_yy = torch.autograd.grad(torch.autograd.grad(u.sum(), y, create_graph=True)[0].sum(), y, create_graph=True)[0]
+
+    u_x = torch.autograd.grad(u_pred.sum(), x, create_graph=True)[0]
+    u_y = torch.autograd.grad(u_pred.sum(), y, create_graph=True)[0]
+
+    u_xx = torch.autograd.grad(u_x.sum(), x, create_graph=True)[0]
+    u_yy = torch.autograd.grad(u_y.sum(), y, create_graph=True)[0]
 
     f = u_tt - c**2 * (u_xx + u_yy)
 
-    return torch.mean(f**2)
+    u_true_tt = manufactured_solution_tt(x, y, t, c)
+    u_true_xx_yy = manufactured_solution_xx_yy(x, y, t, c)
 
-model = WavePINN()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    f_true = u_true_tt - c**2 * u_true_xx_yy
 
-x_train = torch.tensor(np.random.rand(100, 1), dtype=torch.float32)
-y_train = torch.tensor(np.random.rand(100, 1), dtype=torch.float32)
-t_train = torch.tensor(np.random.rand(100, 1), dtype=torch.float32)
+    return torch.mean((f - f_true)**2)
+
+
 c = torch.tensor(0.5)
 
-for epoch in range(2000):
-    optimizer.zero_grad()
-    loss = wave_equation_loss(model, x_train, y_train, t_train, c)
-    loss.backward()
-    optimizer.step()
+resolutions = [50, 100, 200, 400]
+final_losses = []
 
-    if epoch % 100 == 0:
-        print(f'Epoch {epoch}, Loss: {loss.item()}')
+for res in resolutions:
+    model = WavePINN()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    # Create the grid
+    x_train = torch.tensor(np.linspace(0, 1, res), dtype=torch.float32).unsqueeze(1)
+    y_train = torch.tensor(np.linspace(0, 1, res), dtype=torch.float32).unsqueeze(1)
+    t_train = torch.tensor(np.linspace(0, 1, res), dtype=torch.float32).unsqueeze(1)
+    c = torch.tensor(0.5)
+
+    losses = []
+    for epoch in range(1000):
+        optimizer.zero_grad()
+        loss = wave_equation_loss(model, x_train, y_train, t_train, c)
+        loss.backward()
+        optimizer.step()
+
+        losses.append(loss.item())
+
+    final_losses.append(losses[-1])
+
+    plt.plot(losses, label=f'Res {res}')
+
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Training Loss Over Epochs at Different Resolutions')
+plt.legend()
+plt.show()
+
+plt.figure()
+plt.plot(resolutions, final_losses, marker='o')
+plt.xlabel('Resolution')
+plt.ylabel('Final Loss')
+plt.title('Final Loss at Different Resolutions')
+plt.show()
