@@ -17,36 +17,67 @@ class PoissonPINN(nn.Module):
         inputs = torch.cat([x, y], axis=1)
         return self.net(inputs)
 
+def manufactured_solution(x, y):
+    return torch.sin(np.pi * x) * torch.cos(np.pi * y)
 
-def poisson_loss(model, x, y, f):
+def manufactured_rhs(x, y):
+    return 2 * np.pi**2 * torch.sin(np.pi * x) * torch.cos(np.pi * y)
+
+
+def poisson_loss(model, x, y):
     x.requires_grad = True
     y.requires_grad = True
 
-    u = model(x, y)
+    u_pred = model(x, y)
+    f_true = manufactured_rhs(x, y)
 
-    u_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
-    u_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
+    u_x = torch.autograd.grad(u_pred.sum(), x, create_graph=True)[0]
+    u_y = torch.autograd.grad(u_pred.sum(), y, create_graph=True)[0]
 
     u_xx = torch.autograd.grad(u_x.sum(), x, create_graph=True)[0]
     u_yy = torch.autograd.grad(u_y.sum(), y, create_graph=True)[0]
 
-    laplacian_u = u_xx + u_yy
+    laplacian_u_pred = u_xx + u_yy
 
-    return torch.mean((laplacian_u - f)**2)
+    return torch.mean((laplacian_u_pred - f_true)**2)
 
+
+import matplotlib.pyplot as plt
 
 model = PoissonPINN()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+resolutions = [50, 100, 200, 400]
+final_losses = []
 
-x_train = torch.tensor(np.random.rand(100, 1), dtype=torch.float32)
-y_train = torch.tensor(np.random.rand(100, 1), dtype=torch.float32)
-f_train = torch.tensor(np.sin(x_train) * np.cos(y_train), dtype=torch.float32)
+for res in resolutions:
+    model = PoissonPINN()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-for epoch in range(2000):
-    optimizer.zero_grad()
-    loss = poisson_loss(model, x_train, y_train, f_train)
-    loss.backward()
-    optimizer.step()
+    x_train = torch.tensor(np.linspace(0, 1, res), dtype=torch.float32).unsqueeze(1)
+    y_train = torch.tensor(np.linspace(0, 1, res), dtype=torch.float32).unsqueeze(1)
 
-    if epoch % 100 == 0:
-        print(f'Epoch {epoch}, Loss: {loss.item()}')
+    losses = []
+    for epoch in range(2000):
+        optimizer.zero_grad()
+        loss = poisson_loss(model, x_train, y_train)
+        loss.backward()
+        optimizer.step()
+
+        losses.append(loss.item())
+
+    final_losses.append(losses[-1])
+    plt.plot(losses, label=f'Res {res}')
+
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Training Loss Over Epochs at Different Resolutions')
+plt.legend()
+plt.show()
+
+plt.figure()
+plt.plot(resolutions, final_losses, marker='o')
+plt.xlabel('Resolution')
+plt.ylabel('Final Loss')
+plt.title('Final Loss at Different Resolutions')
+plt.show()
