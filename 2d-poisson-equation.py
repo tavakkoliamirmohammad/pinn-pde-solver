@@ -22,7 +22,7 @@ def manufactured_solution(x, y):
     return torch.sin(np.pi * x) * torch.cos(np.pi * y)
 
 def manufactured_rhs(x, y):
-    return 2 * np.pi**2 * torch.sin(np.pi * x) * torch.cos(np.pi * y)
+    return -2 * np.pi**2 * torch.sin(np.pi * x) * torch.cos(np.pi * y)
 
 
 def poisson_loss(model, x, y):
@@ -48,7 +48,7 @@ import matplotlib.pyplot as plt
 model = PoissonPINN()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-resolutions = [50, 100, 200, 400]
+resolutions = [50, 100, 200, 400, 1000]
 final_losses = []
 
 for res in resolutions:
@@ -59,15 +59,16 @@ for res in resolutions:
     y_train = torch.tensor(np.linspace(0, 1, res), dtype=torch.float32).unsqueeze(1)
 
     losses = []
-    for epoch in range(2000):
+    for epoch in range(7000):
         optimizer.zero_grad()
         loss = poisson_loss(model, x_train, y_train)
         loss.backward()
         optimizer.step()
 
         losses.append(loss.item())
-
+    
     final_losses.append(losses[-1])
+    print(f"Res {res}: {final_losses[-1]}")
     plt.plot(losses, label=f'Res {res}')
 
 plt.xlabel('Epoch')

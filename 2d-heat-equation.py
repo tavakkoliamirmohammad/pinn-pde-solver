@@ -56,7 +56,7 @@ model = PINN()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 alpha = torch.tensor(100.0)
 
-resolutions = [50, 100, 200, 400]
+resolutions = [50, 100, 200, 400, 1000]
 resolution_losses = []
 
 for res in resolutions:
@@ -65,7 +65,7 @@ for res in resolutions:
     t_train = torch.tensor(np.linspace(0, 1, res), dtype=torch.float32).unsqueeze(1).requires_grad_(True)
 
     losses = []
-    for epoch in range(1000):
+    for epoch in range(3000):
         optimizer.zero_grad()
         loss = modified_physics_informed_loss(model, x_train, y_train, t_train, alpha)
         loss.backward()
@@ -73,6 +73,7 @@ for res in resolutions:
         losses.append(loss.item())
     
     resolution_losses.append(losses[-1])
+    print(f"Res {res}: {resolution_losses[-1]}")
     plt.plot(losses, label=f'Res {res}')
 
 plt.xlabel('Epoch')
