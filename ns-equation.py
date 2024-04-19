@@ -88,7 +88,7 @@ for res in resolutions:
     t_train = torch.linspace(0, 1, res).unsqueeze(1).requires_grad_(True)
 
     losses = []
-    for epoch in range(1000):
+    for epoch in range(3000):
         optimizer.zero_grad()
         loss = navier_stokes_loss(model, x_train, y_train, t_train, rho, nu)
         loss.backward()
@@ -100,6 +100,7 @@ for res in resolutions:
 
     plt.plot(losses, label=f'Res {res}')
     final_losses.append(losses[-1])
+    print(f"Res {res}: {final_losses[-1]}")
 
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
