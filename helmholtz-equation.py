@@ -39,7 +39,7 @@ def helmholtz_loss(model, x, y, k):
 
 import matplotlib.pyplot as plt
 
-resolutions = [50, 100, 200, 400]
+resolutions = [50, 100, 200, 400, 1000]
 k = 3.0
 final_losses = []
 
@@ -51,7 +51,7 @@ for res in resolutions:
     y_train = torch.Tensor(np.linspace(-1, 1, res)).unsqueeze(1)
 
     losses = []
-    for epoch in range(5000):
+    for epoch in range(10000):
         optimizer.zero_grad()
         loss = helmholtz_loss(model, x_train, y_train, k)
         loss.backward()
@@ -62,6 +62,7 @@ for res in resolutions:
 
     plt.plot(losses, label=f'Res {res}')
     final_losses.append(losses[-1])
+    print(f"Res {res}: {final_losses[-1]}")
 
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
