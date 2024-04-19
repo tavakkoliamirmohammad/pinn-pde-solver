@@ -57,7 +57,7 @@ def wave_equation_loss(model, x, y, t, c):
 
 c = torch.tensor(0.5)
 
-resolutions = [50, 100, 200, 400]
+resolutions = [50, 100, 200, 400, 1000]
 final_losses = []
 
 for res in resolutions:
@@ -71,7 +71,7 @@ for res in resolutions:
     c = torch.tensor(0.5)
 
     losses = []
-    for epoch in range(1000):
+    for epoch in range(5000):
         optimizer.zero_grad()
         loss = wave_equation_loss(model, x_train, y_train, t_train, c)
         loss.backward()
@@ -80,7 +80,7 @@ for res in resolutions:
         losses.append(loss.item())
 
     final_losses.append(losses[-1])
-
+    print(f"Res {res}: {final_losses[-1]}")
     plt.plot(losses, label=f'Res {res}')
 
 plt.xlabel('Epoch')
