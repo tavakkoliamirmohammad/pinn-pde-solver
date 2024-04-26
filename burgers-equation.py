@@ -63,8 +63,7 @@ for res in resolutions:
         loss.backward()
         optimizer.step()
         
-        if epoch % 500 == 0:
-            losses.append(loss.item())
+        losses.append(loss.item())
 
     final_losses.append(losses[-1])
     plt.plot(losses, label=f'Res {res}')

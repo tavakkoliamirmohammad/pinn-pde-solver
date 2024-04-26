@@ -94,9 +94,7 @@ for res in resolutions:
         loss.backward()
         optimizer.step()
 
-        if epoch % 100 == 0:
-            # print(f'Resolution {res}, Epoch {epoch}, Loss: {loss.item()}')
-            losses.append(loss.item())
+        losses.append(loss.item())
 
     plt.plot(losses, label=f'Res {res}')
     final_losses.append(losses[-1])
